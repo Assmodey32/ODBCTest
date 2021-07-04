@@ -1,4 +1,8 @@
 #include "../lib/ODBCTest.h"
+#include <fstream>
+#include <iostream>
+#include <string>
+
 
 ODBCTest::ODBCTest()
 {
@@ -9,21 +13,11 @@ ODBCTest::ODBCTest()
 	 *	This code is for debugging purposes only.
 	 *	The actual code should read this data from the file.
 	 */
-	
+
 	// Initialize Data source name string
 	_mbscpy_s(chrDSN, 1024,
-		(const unsigned char*)
-		"DRIVER={SQL Server}; SERVER=localhost, 1433; DATABASE=lab11; UID=user; PWD=password");
-
-	// Initialize SQLQuery, which will be executed later
-	_mbscpy_s(SQLQuery, 1024, (const unsigned char*)"SELECT * FROM Contracts WHERE Id <= ? AND InsuranceAmount >= ?");
-
-	// Add some parameters to SQLQuery
-	Parameter p = { "10", SQL_NTS };
-
-	parameters.emplace_back(p);
-	p = { "5000", SQL_NTS };
-	parameters.emplace_back(p);
+	          (const unsigned char*)
+	          "DRIVER={SQL Server}; SERVER=localhost, 1433; DATABASE=lab11; UID=user; PWD=password");
 }
 
 
@@ -48,7 +42,7 @@ void ODBCTest::sqlConn()
 	if (!MYSQLSUCCESS(rc))
 	{
 		showSQLError(SQL_HANDLE_DBC, hDbc);
-		
+
 		SQLFreeConnect(hEnv);
 		SQLFreeEnv(hEnv);
 		SQLFreeConnect(hDbc);
@@ -73,12 +67,12 @@ void ODBCTest::sqlExec()
 	{
 		showSQLError(SQL_HANDLE_STMT, hStmt);
 	}
-	
+
 	for (SQLSMALLINT i = 1; i <= cParams; ++i)
 	{
 		rc = SQLBindParameter(hStmt, i, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_VARCHAR,
-			63, 0, parameters[i - 1].val, sizeof(parameters[i - 1].val),
-			&parameters[i - 1].paramLenOrInd);
+		                      63, 0, parameters[i - 1].val, sizeof(parameters[i - 1].val),
+		                      &parameters[i - 1].paramLenOrInd);
 		if (!MYSQLSUCCESS(rc))
 		{
 			showSQLError(SQL_HANDLE_STMT, hStmt);
@@ -108,7 +102,7 @@ void ODBCTest::sqlDisconn() const
 	SQLFreeEnv(hEnv);
 }
 
-void ODBCTest::showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle)
+void ODBCTest::showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle) const
 {
 	SQLCHAR SQLState[1024];
 	SQLCHAR message[1024];
@@ -123,51 +117,133 @@ void ODBCTest::showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle)
 	exit(SQL_ERROR);
 }
 
+void ODBCTest::readSQLFile(const std::string& filename)
+{
+	std::ifstream input(filename);
+
+	std::string line;
+
+	std::string sqlQuery;
+
+	if (input.is_open())
+	{
+		std::cout << "\nReading data from file " << filename << ":\n";
+		// reading sqlQuery
+		while (std::getline(input, line))
+		{
+			if (!line.empty())
+				sqlQuery += line + ' ';
+			else
+				break;
+		}
+
+		std::cout << "\nSQL query:\n" << sqlQuery << '\n';
+
+		_mbscpy_s(SQLQuery, 1024, (const unsigned char*)sqlQuery.c_str());
+
+
+		std::cout << "\nParameters:\n";
+		// reading list of parameters
+		while (std::getline(input, line, '\n'))
+		{
+			std::cout << line << '\n';
+
+			Parameter p;
+			_mbscpy_s(p.val, 64, (const unsigned char*)line.c_str());
+			p.paramLenOrInd = SQL_NTS;
+			parameters.emplace_back(p);
+		}
+		std::cout << "\n";
+		input.close();
+	}
+	else
+	{
+		std::cout << "Couldn't open file!\n";
+	}
+}
+
 void ODBCTest::displayResults(SQLSMALLINT cCols) const
 {
 	BINDING* pFirstBinding;
 
 	// Allocate memory fo each column
 	allocateBindings(cCols, &pFirstBinding);
+
 	RETCODE RetCode;
 
-	bool fNoData = false;
-	do
+	std::ofstream output("output.txt");
+
+	if (output.is_open())
 	{
-		RetCode = SQLFetch(hStmt);
-		if (RetCode == SQL_NO_DATA_FOUND)
-			fNoData = true;
-		else
+		std::cout << "Result:\n";
+
+		bool fNoData = false;
+		do
 		{
-			for (BINDING* pThisBinding = pFirstBinding;
-				pThisBinding != nullptr;
-				pThisBinding = pThisBinding->sNext)
+			// Fetching data row by row
+			RetCode = SQLFetch(hStmt);
+			if (RetCode == SQL_NO_DATA_FOUND)
+				fNoData = true;
+			else
 			{
-				if (pThisBinding->indPtr != SQL_NULL_DATA)
+				for (auto* pThisBinding = pFirstBinding;
+				     pThisBinding != nullptr;
+				     pThisBinding = pThisBinding->sNext)
 				{
-					std::cout << pThisBinding->szBuffer << ", ";
-				}
-				else
-				{
-					std::cout << "<NULL>" << ", ";
+					if (pThisBinding->indPtr != SQL_NULL_DATA)
+					{
+						std::cout << pThisBinding->szBuffer;
+						output << pThisBinding->szBuffer;
+					}
+					else
+					{
+						std::cout << "<NULL>";
+						output << "<NULL>";
+					}
+
+					if (pThisBinding->sNext)
+					{
+						std::cout << ", ";
+						output << ", ";
+					}
+					else
+					{
+						std::cout << '\n';
+						output << '\n';
+					}
 				}
 			}
-			std::cout << '\n';
 		}
-	} while (!fNoData);
+		while (!fNoData);
+	}
+	else
+	{
+		std::cout << "Couldn't open output file!\n";
+	}
+
+	// Clearing data bindings
+	BINDING* tempBinding;
+	for (auto* pThisBinding = pFirstBinding;
+	     pThisBinding != nullptr;
+	     pThisBinding = tempBinding)
+	{
+		free(pThisBinding->szBuffer);
+		tempBinding = pThisBinding->sNext;
+		free(pThisBinding);
+	}
 }
 
 void ODBCTest::allocateBindings(SQLSMALLINT cCols, BINDING** ppBinding) const
 {
 	BINDING* pLastBinding = nullptr;
-	SQLLEN cchDisplay, ssType;
+	SQLLEN cchDisplay;
 
 	for (SQLSMALLINT iCol = 1; iCol <= cCols; ++iCol)
 	{
 		auto* pThisBinding = static_cast<BINDING*>(malloc(sizeof(BINDING)));
 		if (pThisBinding == nullptr)
 		{
-			std::cout << "Out of memory\n";
+			std::cerr << "Out of memory!\n";
 			exit(SQL_ERROR);
 		}
 
@@ -182,24 +258,12 @@ void ODBCTest::allocateBindings(SQLSMALLINT cCols, BINDING** ppBinding) const
 		pLastBinding = pThisBinding;
 
 		SQLColAttribute(hStmt,
-			iCol,
-			SQL_DESC_DISPLAY_SIZE,
-			nullptr,
-			0,
-			nullptr,
-			&cchDisplay);
-
-		SQLColAttribute(hStmt,
-			iCol,
-			SQL_DESC_CONCISE_TYPE,
-			nullptr,
-			0,
-			nullptr,
-			&ssType);
-
-		pThisBinding->fChar = (ssType == SQL_CHAR ||
-			ssType == SQL_VARCHAR ||
-			ssType == SQL_LONGVARCHAR);
+		                iCol,
+		                SQL_DESC_DISPLAY_SIZE,
+		                nullptr,
+		                0,
+		                nullptr,
+		                &cchDisplay);
 
 		pThisBinding->sNext = nullptr;
 
@@ -209,15 +273,15 @@ void ODBCTest::allocateBindings(SQLSMALLINT cCols, BINDING** ppBinding) const
 
 		if (!(pThisBinding->szBuffer))
 		{
-			fprintf(stderr, "Out of memory!\n");
-			exit(-100);
+			std::cerr << "Out of memory!\n";
+			exit(SQL_ERROR);
 		}
 
 		SQLBindCol(hStmt,
-			iCol,
-			SQL_C_TCHAR,
-			pThisBinding->szBuffer,
-			(cchDisplay + 1) * sizeof(CHAR),
-			&pThisBinding->indPtr);
+		           iCol,
+		           SQL_C_CHAR,
+		           pThisBinding->szBuffer,
+		           (cchDisplay + 1) * sizeof(CHAR),
+		           &pThisBinding->indPtr);
 	}
 }

@@ -1,19 +1,20 @@
 #pragma once
 #include <Windows.h>
 #include <sqlext.h>
-#include <iostream>
 #include <vector>
 #include <mbstring.h> 
+#include <string>
+
 
 constexpr auto MYSQLSUCCESS(const RETCODE rc) {
 	return rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO;
 }
 
-struct BINDING {
+struct BINDING
+{
 	SQLSMALLINT cDisplaySize;	/* size to display  */
 	CHAR* szBuffer;				/* display buffer   */
 	SQLLEN indPtr;              /* size or null     */
-	BOOL fChar;                 /* character col?   */
 	struct BINDING* sNext;		/* linked list      */
 };
 
@@ -33,7 +34,7 @@ struct Parameter
  *			"DRIVER={SQL Server}; SERVER=localhost, 1433; DATABASE=lab11; UID=user; PWD=password"
  *			
  *			But when using the following line, the connection will not be established:
- *			"DRIVER={SQL Server}; SERVER=localhost, 1433; DATABASE=lab11; UID=user; PWD=password"
+ *			"DRIVER={SQL Server}; SERVER= localhost, 1433; DATABASE=lab11; UID=user; PWD=password"
  *			
  *		2.	Write a function that queries the SQL query and parameters from a file
  *			and initializes the SQL query and parameters accordingly
@@ -42,10 +43,8 @@ struct Parameter
  *
  *			At the moment a stub for the first two elements in the constructor has been written
  *		------------------------------------------------------------------------------------------------
- *		
- *		4.	Understand how to clear memory after the allocateBindings function works
- *
- *		5.	Understand how to use FreeHandle and FreeConnection correctly in this spaghetti code
+ *				
+ *		4.	Understand how to use FreeHandle and FreeConnection correctly in this spaghetti code
  */
 
 class ODBCTest
@@ -69,10 +68,12 @@ class ODBCTest
 	//void bindParameters(HSTMT hStmt);
 	
 	// Displays errors
-	void showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle);
-
+	void showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle) const;
+		
 public:
 	ODBCTest();
+
+	void readSQLFile(const std::string& filename);
 
 	// Allocate environment, statement and connection
 	void sqlConn();
@@ -82,7 +83,5 @@ public:
 
 	// Free pointers to env, stat, conn and disconnect
 	void sqlDisconn() const;
-
-
 };
 
