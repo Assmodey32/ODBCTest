@@ -1,7 +1,0 @@
-SELECT *
-FROM Contracts
-WHERE Id <= ?
-	AND InsuranceAmount >= ?
-
-10
-5000

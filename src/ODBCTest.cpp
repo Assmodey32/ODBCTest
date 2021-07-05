@@ -9,15 +9,7 @@ ODBCTest::ODBCTest()
 	hDbc = hEnv = hStmt = nullptr;
 	rc = SQL_ERROR;
 
-	/*
-	 *	This code is for debugging purposes only.
-	 *	The actual code should read this data from the file.
-	 */
-
-	// Initialize Data source name string
-	_mbscpy_s(chrDSN, 1024,
-	          (const unsigned char*)
-	          "DRIVER={SQL Server}; SERVER=localhost, 1433; DATABASE=lab11; UID=user; PWD=password");
+	readINIFile();
 }
 
 
@@ -25,7 +17,6 @@ void ODBCTest::sqlConn()
 {
 	// Allocate an environment
 	rc = SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &hEnv);
-	//showSQLError()
 
 	// Register this as an application that expects 3.x behavior,
 	// you must register something if you use AllocHandle
@@ -42,10 +33,6 @@ void ODBCTest::sqlConn()
 	if (!MYSQLSUCCESS(rc))
 	{
 		showSQLError(SQL_HANDLE_DBC, hDbc);
-
-		SQLFreeConnect(hEnv);
-		SQLFreeEnv(hEnv);
-		SQLFreeConnect(hDbc);
 	}
 
 	rc = SQLAllocStmt(hDbc, &hStmt);
@@ -109,7 +96,7 @@ void ODBCTest::showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle) con
 
 	if (SQLGetDiagRec(handleType, handle, 1, SQLState, nullptr, message, 1024, nullptr) == SQL_SUCCESS)
 	{
-		std::cout << "SQL driver message: " << message <<
+		std::cerr << "SQL driver message: " << message <<
 			"\nSQL state: " << SQLState << ".\n";
 	}
 
@@ -117,12 +104,55 @@ void ODBCTest::showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle) con
 	exit(SQL_ERROR);
 }
 
+void ODBCTest::readINIFile()
+{
+	CHAR configFile[] = R"(..\ODBCTest\config.ini)";
+	CHAR dsn[] = "ODBC";
+	CHAR buffer[65];
+
+	std::string resultDsnString;
+
+	GetPrivateProfileString(dsn, "DRIVER", "SQL SERVER", buffer, 64, configFile);
+	resultDsnString += "DRIVER=";
+	resultDsnString += buffer;
+	resultDsnString += "; ";
+
+	GetPrivateProfileString(dsn, "SERVER", "localhost", buffer, 64, configFile);
+	resultDsnString += "SERVER=";
+	resultDsnString += buffer;
+	resultDsnString += ", ";
+
+	GetPrivateProfileString(dsn, "PORT", "1433", buffer, 64, configFile);
+	resultDsnString += buffer;
+	resultDsnString += "; ";
+
+	GetPrivateProfileString(dsn, "DATABASE", "TestDB", buffer, 64, configFile);
+	resultDsnString += "DATABASE=";
+	resultDsnString += buffer;
+	resultDsnString += "; ";
+
+	GetPrivateProfileString(dsn, "UID", "user", buffer, 64, configFile);
+	resultDsnString += "UID=";
+	resultDsnString += buffer;
+	resultDsnString += "; ";
+
+	GetPrivateProfileString(dsn, "PWD", "password", buffer, 64, configFile);
+	resultDsnString += "PWD=";
+	resultDsnString += buffer;
+	resultDsnString += "; ";
+
+	//std::clog << "resultDsnString: " << resultDsnString << '\n';
+
+	_mbscpy_s(chrDSN, 1024,
+	          (const unsigned char*)
+	          resultDsnString.c_str());
+}
+
 void ODBCTest::readSQLFile(const std::string& filename)
 {
 	std::ifstream input(filename);
 
 	std::string line;
-
 	std::string sqlQuery;
 
 	if (input.is_open())
@@ -158,7 +188,8 @@ void ODBCTest::readSQLFile(const std::string& filename)
 	}
 	else
 	{
-		std::cout << "Couldn't open file!\n";
+		std::cerr << "Couldn't open file!\n";
+		exit(-100);
 	}
 }
 
@@ -218,7 +249,8 @@ void ODBCTest::displayResults(SQLSMALLINT cCols) const
 	}
 	else
 	{
-		std::cout << "Couldn't open output file!\n";
+		std::cerr << "Couldn't open output file!\n";
+		exit(-101);
 	}
 
 	// Clearing data bindings
@@ -271,7 +303,7 @@ void ODBCTest::allocateBindings(SQLSMALLINT cCols, BINDING** ppBinding) const
 		// of the data.  Add one character for the null terminator('\0').
 		pThisBinding->szBuffer = static_cast<CHAR*>(malloc((cchDisplay + 1) * sizeof(CHAR)));
 
-		if (!(pThisBinding->szBuffer))
+		if (!pThisBinding->szBuffer)
 		{
 			std::cerr << "Out of memory!\n";
 			exit(SQL_ERROR);
