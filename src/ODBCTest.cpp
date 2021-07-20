@@ -28,7 +28,7 @@ void ODBCTest::sqlConn()
 	rc = SQLSetConnectAttr(hDbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0);
 
 	// Connect to the driver.
-	rc = SQLDriverConnect(hDbc, nullptr, chrDSN, SQL_NTS, retConStr, 1024, nullptr, SQL_DRIVER_NOPROMPT);
+	rc = SQLDriverConnectA(hDbc, nullptr, chrDSN, SQL_NTS, retConStr, 1024, nullptr, SQL_DRIVER_NOPROMPT);
 
 	if (!MYSQLSUCCESS(rc))
 	{
@@ -41,7 +41,7 @@ void ODBCTest::sqlConn()
 void ODBCTest::sqlExec()
 {
 	// Preparing a query for execution
-	rc = SQLPrepare(hStmt, SQLQuery, SQL_NTS);
+	rc = SQLPrepareA(hStmt, SQLQuery, SQL_NTS);
 	if (!MYSQLSUCCESS(rc))
 	{
 		showSQLError(SQL_HANDLE_STMT, hStmt);
@@ -66,7 +66,7 @@ void ODBCTest::sqlExec()
 		}
 	}
 
-	rc = SQLExecDirect(hStmt, SQLQuery, SQL_NTS);
+	rc = SQLExecute(hStmt);
 	if (!MYSQLSUCCESS(rc))
 	{
 		showSQLError(SQL_HANDLE_STMT, hStmt);
@@ -94,7 +94,7 @@ void ODBCTest::showSQLError(SQLSMALLINT handleType, const SQLHANDLE& handle) con
 	SQLCHAR SQLState[1024];
 	SQLCHAR message[1024];
 
-	if (SQLGetDiagRec(handleType, handle, 1, SQLState, nullptr, message, 1024, nullptr) == SQL_SUCCESS)
+	if (SQLGetDiagRecA(handleType, handle, 1, SQLState, nullptr, message, 1024, nullptr) == SQL_SUCCESS)
 	{
 		std::cerr << "SQL driver message: " << message <<
 			"\nSQL state: " << SQLState << ".\n";
@@ -112,31 +112,31 @@ void ODBCTest::readINIFile()
 
 	std::string resultDsnString;
 
-	GetPrivateProfileString(dsn, "DRIVER", "SQL SERVER", buffer, 64, configFile);
+	GetPrivateProfileStringA(dsn, "DRIVER", "SQL SERVER", buffer, 64, configFile);
 	resultDsnString += "DRIVER=";
 	resultDsnString += buffer;
 	resultDsnString += "; ";
 
-	GetPrivateProfileString(dsn, "SERVER", "localhost", buffer, 64, configFile);
+	GetPrivateProfileStringA(dsn, "SERVER", "localhost", buffer, 64, configFile);
 	resultDsnString += "SERVER=";
 	resultDsnString += buffer;
 	resultDsnString += ", ";
 
-	GetPrivateProfileString(dsn, "PORT", "1433", buffer, 64, configFile);
+	GetPrivateProfileStringA(dsn, "PORT", "1433", buffer, 64, configFile);
 	resultDsnString += buffer;
 	resultDsnString += "; ";
 
-	GetPrivateProfileString(dsn, "DATABASE", "TestDB", buffer, 64, configFile);
+	GetPrivateProfileStringA(dsn, "DATABASE", "TestDB", buffer, 64, configFile);
 	resultDsnString += "DATABASE=";
 	resultDsnString += buffer;
 	resultDsnString += "; ";
 
-	GetPrivateProfileString(dsn, "UID", "user", buffer, 64, configFile);
+	GetPrivateProfileStringA(dsn, "UID", "user", buffer, 64, configFile);
 	resultDsnString += "UID=";
 	resultDsnString += buffer;
 	resultDsnString += "; ";
 
-	GetPrivateProfileString(dsn, "PWD", "password", buffer, 64, configFile);
+	GetPrivateProfileStringA(dsn, "PWD", "password", buffer, 64, configFile);
 	resultDsnString += "PWD=";
 	resultDsnString += buffer;
 	resultDsnString += "; ";

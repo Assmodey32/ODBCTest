@@ -1,0 +1,9 @@
+{
+    "editor.fontSize": 20,
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "fstream": "cpp",
+        "iostream": "cpp",
+        "string": "cpp"
+    }
+}

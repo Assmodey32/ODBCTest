@@ -22,7 +22,7 @@ struct BINDING
 struct Parameter
 {
 	SQLCHAR val[64];
-	SQLINTEGER paramLenOrInd;
+	SQLLEN paramLenOrInd;
 };
 
 class ODBCTest
